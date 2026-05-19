@@ -148,7 +148,7 @@ export default function RegisterPage() {
               </label>
               <div style={{ position: "relative" }}>
                 <User size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-                <input {...register("fullName")} type="text" placeholder="Adınız Soyadınız" className="input" style={{ paddingLeft: 38 }} />
+                <input {...register("fullName")} type="text" placeholder={t("full_name_placeholder")} className="input" style={{ paddingLeft: 38 }} />
               </div>
               {errors.fullName && <p style={{ fontSize: 12, color: "#dc2626", marginTop: 5 }}>{t("name_error")}</p>}
             </div>
