@@ -160,7 +160,7 @@ export default function RegisterPage() {
               </label>
               <div style={{ position: "relative" }}>
                 <Mail size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-                <input {...register("email")} type="email" placeholder="email@nümunə.com" className="input" style={{ paddingLeft: 38 }} />
+                <input {...register("email")} type="email" placeholder={t("email_placeholder")} className="input" style={{ paddingLeft: 38 }} />
               </div>
               {errors.email && <p style={{ fontSize: 12, color: "#dc2626", marginTop: 5 }}>{t("email_error")}</p>}
             </div>

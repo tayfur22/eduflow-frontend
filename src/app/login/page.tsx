@@ -115,7 +115,7 @@ export default function LoginPage() {
                 <input
                   {...register("email")}
                   type="email"
-                  placeholder="email@nümunə.com"
+                  placeholder={t("email_placeholder")}
                   className="input"
                   style={{ paddingLeft: 38 }}
                 />
