@@ -6,7 +6,7 @@ import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import {
   Timer, CheckCircle, XCircle, Award, ArrowRight,
-  AlertCircle, Loader2, BookOpen
+  AlertCircle, Loader2, BookOpen, Check
 } from "lucide-react";
 
 export default function QuizPage() {
