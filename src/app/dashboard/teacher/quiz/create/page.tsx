@@ -13,6 +13,8 @@ import {
 interface Option { text: string; correct: boolean; }
 interface Question { questionText: string; points: number; options: Option[]; }
 
+const OPTION_LABELS = ["A", "B", "C", "D"];
+
 function CreateQuizContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -26,12 +28,14 @@ function CreateQuizContent() {
     maxAttempts: "1",
   });
   const [questions, setQuestions] = useState<Question[]>([
-    { questionText: "", points: 10, options: [
-      { text: "", correct: true },
-      { text: "", correct: false },
-      { text: "", correct: false },
-      { text: "", correct: false },
-    ]},
+    {
+      questionText: "", points: 10, options: [
+        { text: "", correct: true },
+        { text: "", correct: false },
+        { text: "", correct: false },
+        { text: "", correct: false },
+      ]
+    },
   ]);
   const [saving, setSaving] = useState(false);
   const [openQ, setOpenQ] = useState<number[]>([0]);
@@ -42,17 +46,14 @@ function CreateQuizContent() {
   }, [user]);
 
   const addQuestion = () => {
-    const newQ: Question = {
-      questionText: "",
-      points: 10,
-      options: [
+    setQuestions(prev => [...prev, {
+      questionText: "", points: 10, options: [
         { text: "", correct: true },
         { text: "", correct: false },
         { text: "", correct: false },
         { text: "", correct: false },
-      ],
-    };
-    setQuestions(prev => [...prev, newQ]);
+      ]
+    }]);
     setOpenQ(prev => [...prev, questions.length]);
   };
 
@@ -85,19 +86,32 @@ function CreateQuizContent() {
 
     setSaving(true);
     try {
+      // 1. Quiz yarat
       const quizRes = await api.post(`/api/courses/${form.courseId}/quizzes`, {
         title: form.title,
-        timeLimit: form.timeLimit ? Number(form.timeLimit) : null,
+        timeLimitMinutes: form.timeLimit ? Number(form.timeLimit) : null,
         passingScore: Number(form.passingScore),
         maxAttempts: Number(form.maxAttempts),
+        shuffleQuestions: false,
       });
       const quizId = quizRes.data.id;
 
-      for (const q of questions) {
+      // 2. Sualları əlavə et — backend formatına uyğun
+      for (let qi = 0; qi < questions.length; qi++) {
+        const q = questions[qi];
+        const correctIndex = q.options.findIndex(o => o.correct);
+        const correctLabel = OPTION_LABELS[correctIndex] ?? "A";
+
         await api.post(`/api/quizzes/${quizId}/questions`, {
           questionText: q.questionText,
+          questionType: "MULTIPLE_CHOICE",          // backend tələb edir
+          correctAnswer: correctLabel,               // "A", "B", "C", "D"
           points: q.points,
-          options: q.options.map(o => ({ optionText: o.text, correct: o.correct })),
+          orderIndex: qi + 1,
+          options: q.options.map((o, oi) => ({
+            optionLabel: OPTION_LABELS[oi],          // backend tələb edir
+            optionText: o.text,
+          })),
         });
       }
 
@@ -138,6 +152,7 @@ function CreateQuizContent() {
 
       <div className="section">
         <div className="container" style={{ maxWidth: 760 }}>
+          {/* Quiz settings */}
           <div className="card animate-fade-up" style={{ padding: 28, marginBottom: 24 }}>
             <h3 style={{ fontSize: 16, marginBottom: 20 }}>Quiz parametrləri</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -188,6 +203,7 @@ function CreateQuizContent() {
             </div>
           </div>
 
+          {/* Questions */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <h3 style={{ fontSize: 18 }}>Suallar</h3>
             <button onClick={addQuestion} className="btn btn-secondary" style={{ fontSize: 13 }}>
@@ -197,10 +213,16 @@ function CreateQuizContent() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {questions.map((q, qi) => (
-              <div key={qi} className="card animate-fade-up" style={{ overflow: "hidden", animationDelay: `${qi * 0.04}s`, opacity: 0 }}>
+              <div key={qi} className="card animate-fade-up"
+                style={{ overflow: "hidden", animationDelay: `${qi * 0.04}s`, opacity: 0 }}>
+                {/* Question header */}
                 <div style={{ display: "flex", alignItems: "center", padding: "16px 20px", gap: 12, cursor: "pointer" }}
                   onClick={() => setOpenQ(prev => prev.includes(qi) ? prev.filter(i => i !== qi) : [...prev, qi])}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--accent-soft)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "var(--accent)", flexShrink: 0 }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 8, background: "var(--accent-soft)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 13, fontWeight: 700, color: "var(--accent)", flexShrink: 0
+                  }}>
                     {qi + 1}
                   </div>
                   <p style={{ flex: 1, fontSize: 14, color: q.questionText ? "var(--text-primary)" : "var(--text-muted)", fontWeight: q.questionText ? 500 : 400 }}>
@@ -238,33 +260,48 @@ function CreateQuizContent() {
                     </div>
 
                     <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 10 }}>
-                      Variantlar <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(düzgünü seçin)</span>
+                      Variantlar <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(düzgün cavabı seçin)</span>
                     </label>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       {q.options.map((opt, oi) => (
                         <div key={oi} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          {/* Correct answer radio */}
                           <button onClick={() => updateOption(qi, oi, "correct", true)}
                             style={{
-                              width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+                              width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
                               border: `2px solid ${opt.correct ? "var(--accent)" : "var(--border)"}`,
                               background: opt.correct ? "var(--accent)" : "transparent",
                               cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: 11, fontWeight: 700,
+                              color: opt.correct ? "white" : "var(--text-muted)",
                             }}>
-                            {opt.correct && <Check size={12} color="white" />}
+                            {OPTION_LABELS[oi]}
                           </button>
-                          <input className="input" placeholder={`${["A", "B", "C", "D"][oi]} variantı...`}
+                          <input className="input"
+                            placeholder={`${OPTION_LABELS[oi]} variantı...`}
                             value={opt.text}
                             onChange={e => updateOption(qi, oi, "text", e.target.value)}
-                            style={{ border: opt.correct ? "1px solid var(--accent)" : undefined, flex: 1 }} />
+                            style={{
+                              flex: 1,
+                              border: opt.correct ? "1.5px solid var(--accent)" : undefined,
+                              background: opt.correct ? "var(--accent-soft)" : undefined,
+                            }} />
+                          {opt.correct && (
+                            <Check size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
+                          )}
                         </div>
                       ))}
                     </div>
+                    <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>
+                      Hərfi düyməyə basaraq düzgün cavabı seçin
+                    </p>
                   </div>
                 )}
               </div>
             ))}
           </div>
 
+          {/* Bottom save */}
           <div className="card" style={{ padding: "20px 24px", marginTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontSize: 14, color: "var(--text-secondary)" }}>
               <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{questions.length}</span> sual ·{" "}

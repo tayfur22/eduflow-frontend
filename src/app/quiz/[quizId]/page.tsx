@@ -26,7 +26,7 @@ export default function QuizPage() {
     api.get(`/api/quizzes/${quizId}/start`)
       .then(r => {
         setQuiz(r.data);
-        if (r.data.timeLimit) setTimeLeft(r.data.timeLimit * 60);
+        if (r.data.timeLimitMinutes) setTimeLeft(r.data.timeLimitMinutes * 60);
       })
       .catch(() => router.back())
       .finally(() => setLoading(false));
@@ -54,12 +54,17 @@ export default function QuizPage() {
     if (submitting || result) return;
     setSubmitting(true);
     try {
-      const payload = {
-        answers: Object.entries(answers).map(([questionId, optionId]) => ({
-          questionId: Number(questionId),
-          selectedOptionId: Number(optionId),
-        })),
-      };
+      // Backend Map<Long, String> gözləyir: { "questionId": "A" } formatında
+      const answersMap: Record<string, string> = {};
+      Object.entries(answers).forEach(([questionId, optionId]) => {
+        // Seçilmiş option-un label-ini tap (A/B/C/D)
+        const question = quiz?.questions?.find((q: any) => q.id === Number(questionId));
+        const option = question?.options?.find((o: any) => o.id === Number(optionId));
+        if (option?.optionLabel) {
+          answersMap[questionId] = option.optionLabel;
+        }
+      });
+      const payload = { answers: answersMap };
       const r = await api.post(`/api/quizzes/${quizId}/submit`, payload);
       setResult(r.data);
     } catch (e: any) {
@@ -101,7 +106,7 @@ export default function QuizPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 36 }}>
             {[
               { label: "Sual sayı", value: totalQuestions },
-              { label: "Vaxt limiti", value: quiz.timeLimit ? `${quiz.timeLimit} dəq` : "Limitsiz" },
+              { label: "Vaxt limiti", value: quiz.timeLimitMinutes ? `${quiz.timeLimitMinutes} dəq` : "Limitsiz" },
               { label: "Keçid balı", value: `${quiz.passingScore}%` },
             ].map(({ label, value }) => (
               <div key={label} style={{ padding: "14px", background: "var(--bg-secondary)", borderRadius: 10, border: "1px solid var(--border)" }}>
@@ -138,8 +143,8 @@ export default function QuizPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 36 }}>
             {[
               { label: "Bal", value: `${Math.round(result.percentage)}%`, color: result.passed ? "#16a34a" : "#dc2626" },
-              { label: "Düzgün", value: result.correctAnswers, color: "#16a34a" },
-              { label: "Yanlış", value: result.wrongAnswers, color: "#dc2626" },
+              { label: "Düzgün", value: result.answers?.filter((a: any) => a.correct).length ?? 0, color: "#16a34a" },
+              { label: "Yanlış", value: result.answers?.filter((a: any) => !a.correct).length ?? 0, color: "#dc2626" },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ padding: "16px", background: "var(--bg-secondary)", borderRadius: 12, border: "1px solid var(--border)" }}>
                 <div style={{ fontSize: 26, fontWeight: 800, fontFamily: "Syne, sans-serif", color }}>{value}</div>
@@ -156,7 +161,7 @@ export default function QuizPage() {
         {/* Answer review */}
         <h3 style={{ fontSize: 18, marginBottom: 16 }}>Cavabların baxışı</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {result.answerResults?.map((ar: any, i: number) => (
+          {result.answers?.map((ar: any, i: number) => (
             <div key={i} className="card" style={{ padding: 20, borderLeft: `3px solid ${ar.correct ? "#16a34a" : "#dc2626"}` }}>
               <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
                 {ar.correct ? <CheckCircle size={17} color="#16a34a" /> : <XCircle size={17} color="#dc2626" />}
@@ -164,11 +169,16 @@ export default function QuizPage() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13 }}>
                 <div style={{ padding: "8px 12px", borderRadius: 6, background: "#dcfce7", color: "#15803d" }}>
-                  ✓ Düzgün: {ar.correctOptionText}
+                  ✓ Düzgün cavab: {ar.correctAnswer}
                 </div>
-                {!ar.correct && ar.selectedOptionText && (
+                {!ar.correct && ar.givenAnswer && (
                   <div style={{ padding: "8px 12px", borderRadius: 6, background: "#fef2f2", color: "#dc2626" }}>
-                    ✗ Seçdiyiniz: {ar.selectedOptionText}
+                    ✗ Seçdiyiniz: {ar.givenAnswer}
+                  </div>
+                )}
+                {ar.explanation && (
+                  <div style={{ padding: "8px 12px", borderRadius: 6, background: "var(--bg-secondary)", color: "var(--text-secondary)", fontSize: 12 }}>
+                    💡 {ar.explanation}
                   </div>
                 )}
               </div>
