@@ -5,16 +5,18 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
+import { useToastStore } from "@/store/toastStore";
 import {
   CheckCircle, Circle, ChevronLeft, ChevronRight,
   BookOpen, MessageSquare, FileText, ArrowLeft,
-  Send, Loader2, Play, Award, Lock
+  Send, Loader2, Play, Award, Sparkles, Zap,
 } from "lucide-react";
 
 export default function LearnPage() {
   const { lessonId } = useParams();
   const router = useRouter();
   const { user } = useAuthStore();
+  const toast = useToastStore();
   const [lesson, setLesson] = useState<any>(null);
   const [course, setCourse] = useState<any>(null);
   const [completed, setCompleted] = useState(false);
@@ -26,12 +28,20 @@ export default function LearnPage() {
   const [messages, setMessages] = useState<{ q: string; a: string }[]>([]);
   const [completedLessons, setCompletedLessons] = useState<number[]>([]);
   const [quizzes, setQuizzes] = useState<any[]>([]);
+  // AI Summary state
+  const [summary, setSummary] = useState("");
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) { router.push("/login"); return; }
 
-    // Progress yüklə
+    setSummary("");
+    setMessages([]);
+    setLesson(null);
+    setCourse(null);
+    setLoading(true);
+
     api.get("/api/progress/my")
       .then(r => {
         const done = r.data.filter((p: any) => p.completed).map((p: any) => p.lessonId);
@@ -39,12 +49,8 @@ export default function LearnPage() {
         setCompleted(done.includes(Number(lessonId)));
       }).catch(() => {});
 
-    // Lesson məlumatı backend-də /api/lessons/{id} endpoint yoxdursa
-    // course public API-dən lesson-u tapırıq
-    // Əvvəlcə enrollments-dən courseId tapırıq
     api.get("/api/enrollments/my")
       .then(async (er) => {
-        // Hər enrollment-ın kursunu yoxlayırıq
         for (const enrollment of er.data) {
           const cr = await api.get(`/api/courses/public/${enrollment.courseId}`);
           const foundCourse = cr.data;
@@ -53,7 +59,6 @@ export default function LearnPage() {
             if (foundLesson) {
               setLesson({ ...foundLesson, courseId: foundCourse.id });
               setCourse(foundCourse);
-              // Quiz-ləri yüklə
               api.get(`/api/courses/${foundCourse.id}/quizzes`).then(qr => setQuizzes(qr.data)).catch(() => {});
               setLoading(false);
               return;
@@ -74,8 +79,12 @@ export default function LearnPage() {
       await api.post(`/api/progress/complete/${lessonId}`);
       setCompleted(true);
       setCompletedLessons(prev => [...prev, Number(lessonId)]);
-    } catch (e) { }
-    finally { setCompleting(false); }
+      toast.success("Dərs tamamlandı! 🎉");
+    } catch {
+      toast.error("Xəta baş verdi");
+    } finally {
+      setCompleting(false);
+    }
   };
 
   const askAi = async () => {
@@ -85,13 +94,31 @@ export default function LearnPage() {
     setAiLoading(true);
     try {
       const r = await api.post("/api/ai/tutor", { lessonId: Number(lessonId), question: q });
-      setMessages(prev => [...prev, { q, a: r.data.answer }]);
-    } catch (e) {
+      setMessages(prev => [...prev, { q, a: r.data.answer || r.data.response || "Cavab alındı" }]);
+    } catch {
       setMessages(prev => [...prev, { q, a: "Xəta baş verdi. Yenidən cəhd edin." }]);
-    } finally { setAiLoading(false); }
+    } finally {
+      setAiLoading(false);
+    }
   };
 
-  // Əvvəlki / Növbəti dərs
+  const generateSummary = async () => {
+    if (summaryLoading) return;
+    setSummaryLoading(true);
+    setSummary("");
+    setTab("ai");
+    try {
+      const r = await api.post("/api/ai/summary", { lessonId: Number(lessonId) });
+      const text = r.data.summary || r.data.content || r.data.result || "";
+      setSummary(text);
+      toast.success("Xülasə hazırlandı");
+    } catch {
+      toast.error("Xülasə yaradıla bilmədi");
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
   const allLessons = course?.sections?.flatMap((s: any) => s.lessons || []) || [];
   const currentIdx = allLessons.findIndex((l: any) => l.id === Number(lessonId));
   const prevLesson = currentIdx > 0 ? allLessons[currentIdx - 1] : null;
@@ -100,17 +127,16 @@ export default function LearnPage() {
   if (loading) return (
     <div className="page" style={{ paddingTop: 80 }}>
       <div className="container section">
-        <div className="skeleton" style={{ height: 400, borderRadius: 12 }} />
+        <div className="skeleton" style={{ height: 400 }} />
       </div>
     </div>
   );
 
   if (!lesson) return (
     <div className="page" style={{ paddingTop: 120, textAlign: "center" }}>
-      <Lock size={40} style={{ margin: "0 auto 16px", opacity: 0.3, color: "var(--text-muted)" }} />
-      <p style={{ color: "var(--text-muted)", fontSize: 16 }}>Dərs tapılmadı və ya girişiniz yoxdur</p>
-      <Link href="/courses" className="btn btn-primary" style={{ margin: "16px auto 0", display: "inline-flex" }}>
-        Kurslara qayıt
+      <p style={{ color: "var(--text-muted)" }}>Dərs tapılmadı və ya girişiniz yoxdur</p>
+      <Link href="/dashboard/student" className="btn btn-secondary" style={{ marginTop: 16, display: "inline-flex" }}>
+        <ArrowLeft size={14} /> Dashboarda qayıt
       </Link>
     </div>
   );
@@ -121,21 +147,26 @@ export default function LearnPage() {
 
         {/* Sidebar */}
         <div style={{
-          borderRight: "1px solid var(--border)", background: "var(--bg-secondary)",
-          overflowY: "auto", position: "sticky", top: 64, height: "calc(100vh - 64px)",
+          borderRight: "1px solid var(--border)",
+          background: "var(--bg-secondary)",
+          overflowY: "auto",
+          position: "sticky",
+          top: 64,
+          height: "calc(100vh - 64px)",
         }}>
-          <div style={{ padding: "20px 14px" }}>
-            <Link href={course ? `/courses/${course.id}` : "/courses"} className="btn btn-ghost"
-              style={{ fontSize: 12, padding: "6px 10px", marginBottom: 16, display: "inline-flex" }}>
+          <div style={{ padding: "20px 16px" }}>
+            <Link
+              href={course ? `/courses/${course.id}` : "/courses"}
+              className="btn btn-ghost"
+              style={{ fontSize: 12, padding: "6px 10px", marginBottom: 16, display: "inline-flex" }}
+            >
               <ArrowLeft size={13} /> {course?.title || "Kursa qayıt"}
             </Link>
-
-            <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12, padding: "0 4px" }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>
               Kurs proqramı
-            </p>
-
+            </h3>
             {course?.sections?.map((section: any) => (
-              <div key={section.id} style={{ marginBottom: 18 }}>
+              <div key={section.id} style={{ marginBottom: 16 }}>
                 <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6, padding: "0 4px" }}>
                   {section.title}
                 </p>
@@ -151,7 +182,8 @@ export default function LearnPage() {
                     }}>
                       {isDone
                         ? <CheckCircle size={13} color="#16a34a" />
-                        : <Circle size={13} color={isCurrent ? "var(--accent)" : "var(--text-muted)"} />}
+                        : <Circle size={13} color={isCurrent ? "var(--accent)" : "var(--text-muted)"} />
+                      }
                       <span style={{
                         fontSize: 13,
                         color: isCurrent ? "var(--accent)" : "var(--text-secondary)",
@@ -191,18 +223,34 @@ export default function LearnPage() {
           <div style={{ borderBottom: "1px solid var(--border)", padding: "22px 32px", background: "var(--bg-card)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
               <h1 style={{ fontSize: 21, lineHeight: 1.3 }}>{lesson.title}</h1>
-              <button
-                onClick={completeLesson}
-                disabled={completed || completing}
-                className={`btn ${completed ? "btn-secondary" : "btn-primary"}`}
-                style={{ fontSize: 13 }}
-              >
-                {completed
-                  ? <><CheckCircle size={14} /> Tamamlandı</>
-                  : completing
-                    ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> ...</>
-                    : <><CheckCircle size={14} /> Tamamla</>}
-              </button>
+              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                {/* AI Summary button */}
+                <button
+                  onClick={generateSummary}
+                  disabled={summaryLoading}
+                  className="btn btn-secondary"
+                  style={{ fontSize: 13, gap: 6 }}
+                  title="Bu dərsin xülasəsini AI ilə yarat"
+                >
+                  {summaryLoading
+                    ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Xülasə...</>
+                    : <><Sparkles size={14} color="var(--accent)" /> Xülasə</>
+                  }
+                </button>
+                <button
+                  onClick={completeLesson}
+                  disabled={completed || completing}
+                  className={`btn ${completed ? "btn-secondary" : "btn-primary"}`}
+                  style={{ fontSize: 13 }}
+                >
+                  {completed
+                    ? <><CheckCircle size={14} /> Tamamlandı</>
+                    : completing
+                      ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> ...</>
+                      : <><CheckCircle size={14} /> Tamamla</>
+                  }
+                </button>
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: 4, marginTop: 16 }}>
@@ -243,9 +291,13 @@ export default function LearnPage() {
                 {lesson.contentUrl && lesson.lessonType === "PDF" && (
                   <div style={{ marginBottom: 28 }}>
                     <a href={lesson.contentUrl} target="_blank" rel="noopener noreferrer"
-                      className="btn btn-secondary" style={{ display: "inline-flex", gap: 8 }}>
+                      className="btn btn-secondary" style={{ display: "inline-flex", gap: 8, marginBottom: 14 }}>
                       <BookOpen size={16} /> PDF-i aç
                     </a>
+                    <iframe
+                      src={lesson.contentUrl}
+                      style={{ width: "100%", height: 560, border: "1px solid var(--border)", borderRadius: 12 }}
+                    />
                   </div>
                 )}
 
@@ -290,16 +342,58 @@ export default function LearnPage() {
 
             {tab === "ai" && (
               <div className="animate-fade-in" style={{ maxWidth: 700 }}>
+                {/* AI Summary result */}
+                {summary && (
+                  <div style={{
+                    marginBottom: 24,
+                    padding: "18px 22px",
+                    background: "linear-gradient(135deg, var(--accent-soft), var(--bg-secondary))",
+                    border: "1px solid var(--accent)",
+                    borderRadius: 12,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                      <Sparkles size={16} color="var(--accent)" />
+                      <span style={{ fontSize: 14, fontWeight: 600, color: "var(--accent)" }}>AI Xülasə</span>
+                    </div>
+                    <p style={{ fontSize: 14, lineHeight: 1.8, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
+                      {summary}
+                    </p>
+                  </div>
+                )}
+
+                {summaryLoading && (
+                  <div style={{
+                    marginBottom: 24,
+                    padding: "18px 22px",
+                    background: "var(--bg-secondary)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 12,
+                    display: "flex", alignItems: "center", gap: 10, color: "var(--text-muted)",
+                  }}>
+                    <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} color="var(--accent)" />
+                    <span style={{ fontSize: 14 }}>AI dərsi xülasə edir...</span>
+                  </div>
+                )}
+
+                {/* Chat messages */}
                 <div style={{
-                  minHeight: 320, maxHeight: 460, overflowY: "auto",
+                  minHeight: 280, maxHeight: 420, overflowY: "auto",
                   display: "flex", flexDirection: "column", gap: 14,
                   marginBottom: 18, padding: 4,
                 }}>
-                  {messages.length === 0 && !aiLoading && (
-                    <div style={{ textAlign: "center", padding: "48px 0", color: "var(--text-muted)" }}>
+                  {messages.length === 0 && !aiLoading && !summary && !summaryLoading && (
+                    <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>
                       <MessageSquare size={36} style={{ margin: "0 auto 12px", opacity: 0.25 }} />
                       <p style={{ fontSize: 15 }}>Bu dərslə bağlı sual ver</p>
                       <p style={{ fontSize: 13, marginTop: 6 }}>AI tutor sənə kömək edəcək</p>
+                      <button
+                        onClick={generateSummary}
+                        disabled={summaryLoading}
+                        className="btn btn-secondary"
+                        style={{ marginTop: 16, fontSize: 13, gap: 6 }}
+                      >
+                        <Zap size={14} color="var(--accent)" /> Dərsi xülasə et
+                      </button>
                     </div>
                   )}
                   {messages.map((m, i) => (
@@ -326,6 +420,7 @@ export default function LearnPage() {
                   )}
                   <div ref={chatBottomRef} />
                 </div>
+
                 <div style={{ display: "flex", gap: 8 }}>
                   <input
                     className="input"

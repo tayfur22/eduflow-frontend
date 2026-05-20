@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import api from "@/lib/api";
+import { useToastStore } from "@/store/toastStore";
 import { useAuthStore } from "@/store/authStore";
 import {
   BookOpen, Play, Lock, ChevronDown, ChevronRight,
@@ -24,6 +25,7 @@ export default function CourseDetailPage() {
   const [showPayment, setShowPayment] = useState(false);
   const [openSections, setOpenSections] = useState<number[]>([0]);
   const [error, setError] = useState("");
+  const toast = useToastStore();
   const [success, setSuccess] = useState("");
   const [quizzes, setQuizzes] = useState<any[]>([]);
 
@@ -51,6 +53,7 @@ export default function CourseDetailPage() {
     try {
       await api.post(`/api/enrollments/free/${id}`);
       setEnrolled(true);
+      toast.success("Kursa uğurla qoşuldunuz! 🎉");
       setSuccess("Kursa uğurla qoşuldunuz!");
     } catch (e: any) {
       setError(e.response?.data?.error || "Xəta baş verdi");
@@ -64,6 +67,7 @@ export default function CourseDetailPage() {
     try {
       await api.post("/api/enrollments/code", { accessCode });
       setEnrolled(true);
+      toast.success("Kursa uğurla qoşuldunuz! 🎉");
       setSuccess("Kod qəbul edildi! Kursa qoşuldunuz.");
       setShowCodeInput(false);
     } catch (e: any) {
@@ -81,6 +85,7 @@ export default function CourseDetailPage() {
         currency: "AZN",
       });
       setEnrolled(true);
+      toast.success("Kursa uğurla qoşuldunuz! 🎉");
       setSuccess("Ödəniş qəbul edildi! Kursa qoşuldunuz.");
       setShowPayment(false);
     } catch (e: any) {

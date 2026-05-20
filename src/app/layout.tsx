@@ -5,6 +5,7 @@ import { useThemeStore } from "@/store/themeStore";
 import { useAuthStore } from "@/store/authStore";
 import { useLangStore } from "@/store/langStore";
 import Navbar from "@/components/layout/Navbar";
+import ToastContainer from "@/components/shared/Toast";
 import "./globals.css";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main style={{ paddingTop: 64 }}>
           {children}
         </main>
+        <ToastContainer />
       </body>
     </html>
   );

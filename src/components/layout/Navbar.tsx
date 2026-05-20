@@ -9,7 +9,7 @@ import { useLangStore } from "@/store/langStore";
 import LangSelector from "@/components/shared/LangSelector";
 import {
   Sun, Moon, GraduationCap, LogOut, User,
-  BookOpen, LayoutDashboard, Menu, X
+  BookOpen, LayoutDashboard, Menu, X, CreditCard,
 } from "lucide-react";
 
 export default function Navbar() {
@@ -38,6 +38,7 @@ export default function Navbar() {
       : [
           { href: "/dashboard/student", label: t("nav_dashboard"), icon: LayoutDashboard },
           { href: "/courses", label: t("nav_courses"), icon: BookOpen },
+          { href: "/payments", label: "Ödənişlər", icon: CreditCard },
         ]
     : [{ href: "/courses", label: t("nav_courses"), icon: BookOpen }];
 
