@@ -7,7 +7,7 @@ import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useToastStore } from "@/store/toastStore";
 import {
-  BookOpen, Users, Plus, Eye, EyeOff, ArrowRight, Edit,
+  BookOpen, Users, Plus, Eye, EyeOff, ArrowRight, Edit, Trash2, AlertTriangle,
   Sparkles, ChevronRight, ClipboardCheck, Key, X, GraduationCap,
   Calendar, TrendingUp,
 } from "lucide-react";
@@ -20,10 +20,13 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   // enrollment counts per courseId
   const [enrollmentCounts, setEnrollmentCounts] = useState<Record<number, number>>({});
-  // modal state
+  // students modal state
   const [studentsModal, setStudentsModal] = useState<{ courseId: number; title: string } | null>(null);
   const [students, setStudents] = useState<any[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
+  // delete confirm state
+  const [deleteConfirm, setDeleteConfirm] = useState<{ courseId: number; title: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!user) { router.push("/login"); return; }
@@ -55,6 +58,22 @@ export default function TeacherDashboard() {
       toast.success(published ? "Kurs gizlədildi" : "Kurs yayımlandı");
     } catch {
       toast.error("Əməliyyat uğursuz oldu");
+    }
+  };
+
+
+  const deleteCourse = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/api/courses/${deleteConfirm.courseId}`);
+      setCourses(prev => prev.filter(c => c.id !== deleteConfirm.courseId));
+      toast.success("Kurs silindi");
+      setDeleteConfirm(null);
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || "Kurs silinə bilmədi");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -162,9 +181,9 @@ export default function TeacherDashboard() {
 
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                            <p style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            <Link href={`/dashboard/teacher/courses/${course.id}`} style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "none" }}>
                               {course.title}
-                            </p>
+                            </Link>
                             <span style={{
                               fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 100, flexShrink: 0,
                               background: course.published ? "#dcfce7" : "#fef3c7",
@@ -206,6 +225,14 @@ export default function TeacherDashboard() {
                           <Link href={`/dashboard/teacher/courses/${course.id}`} className="btn btn-secondary" style={{ fontSize: 12, padding: "6px 12px" }}>
                             <Edit size={13} /> Düzəlt
                           </Link>
+                          <button
+                            onClick={() => setDeleteConfirm({ courseId: course.id, title: course.title })}
+                            className="btn"
+                            style={{ fontSize: 12, padding: "6px 10px", background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5" }}
+                            title="Kursu sil"
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -269,6 +296,45 @@ export default function TeacherDashboard() {
       </div>
 
       {/* Students Modal */}
+      {/* Delete Confirm Modal */}
+      {deleteConfirm && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 1001,
+          background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+        }}
+          onClick={e => { if (e.target === e.currentTarget) setDeleteConfirm(null); }}
+        >
+          <div className="card" style={{ width: "100%", maxWidth: 420, padding: "28px 32px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <AlertTriangle size={22} color="#dc2626" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: 17, color: "var(--text-primary)" }}>Kursu sil</h3>
+                <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>Bu əməliyyat geri qaytarıla bilməz</p>
+              </div>
+            </div>
+            <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 24, lineHeight: 1.6 }}>
+              <strong style={{ color: "var(--text-primary)" }}>{deleteConfirm.title}</strong> kursunu silmək istədiyinizə əminsiniz?
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setDeleteConfirm(null)} className="btn btn-secondary" style={{ fontSize: 14 }} disabled={deleting}>
+                Ləğv et
+              </button>
+              <button onClick={deleteCourse} disabled={deleting} style={{
+                fontSize: 14, padding: "8px 20px", borderRadius: 8, border: "none",
+                background: "#dc2626", color: "white", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 6, fontWeight: 500,
+                opacity: deleting ? 0.7 : 1,
+              }}>
+                {deleting ? "Silinir..." : <><Trash2 size={14} /> Sil</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {studentsModal && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 1000,
