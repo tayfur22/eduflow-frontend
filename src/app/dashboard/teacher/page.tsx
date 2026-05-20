@@ -6,8 +6,17 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import {
-  BookOpen, Users, Plus, Eye, EyeOff,
-  ArrowRight, Edit, Sparkles, ChevronRight
+  BookOpen,
+  Users,
+  Plus,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Edit,
+  Sparkles,
+  ChevronRight,
+  ClipboardCheck,
+  Key
 } from "lucide-react";
 
 export default function TeacherDashboard() {
@@ -187,7 +196,7 @@ export default function TeacherDashboard() {
                   {[
                     { href: "/dashboard/teacher/create-course", label: "Yeni kurs yarat", icon: Plus },
                     { href: "/courses", label: "Platformaya bax", icon: Eye },
-                    { href: "/dashboard/teacher/quiz/create", label: "Manual Quiz yarat", icon: ClipboardList },
+                    { href: "/dashboard/teacher/quiz/create", label: "Manual Quiz yarat", icon: ClipboardCheck },
                     { href: "/dashboard/teacher/codes", label: "Giriş kodları", icon: Key },
                   ].map(({ href, label, icon: Icon }) => (
                     <Link key={href} href={href} style={{
