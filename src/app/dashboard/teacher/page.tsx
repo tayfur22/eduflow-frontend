@@ -187,6 +187,8 @@ export default function TeacherDashboard() {
                   {[
                     { href: "/dashboard/teacher/create-course", label: "Yeni kurs yarat", icon: Plus },
                     { href: "/courses", label: "Platformaya bax", icon: Eye },
+                    { href: "/dashboard/teacher/quiz/create", label: "Manual Quiz yarat", icon: ClipboardList },
+                    { href: "/dashboard/teacher/codes", label: "Giriş kodları", icon: Key },
                   ].map(({ href, label, icon: Icon }) => (
                     <Link key={href} href={href} style={{
                       display: "flex", alignItems: "center", justifyContent: "space-between",
