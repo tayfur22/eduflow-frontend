@@ -6,7 +6,7 @@ import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import {
   Timer, CheckCircle, XCircle, Award, ArrowRight,
-  AlertCircle, Loader2, BookOpen
+  AlertCircle, Loader2, BookOpen,Check
 } from "lucide-react";
 
 export default function QuizPage() {
@@ -233,7 +233,7 @@ export default function QuizPage() {
                         <button key={opt.id} onClick={() => selectOption(q.id, opt.optionLabel)}
                           style={{ padding: "12px 16px", borderRadius: 10, textAlign: "left", fontSize: 14, border: `2px solid ${selected ? "var(--accent)" : "var(--border)"}`, background: selected ? "var(--accent-soft)" : "var(--bg-secondary)", color: selected ? "var(--accent)" : "var(--text-primary)", cursor: "pointer", transition: "all 0.18s ease", fontWeight: selected ? 600 : 400, display: "flex", alignItems: "center", gap: 10 }}>
                           <div style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${selected ? "var(--accent)" : "var(--border)"}`, background: selected ? "var(--accent)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.18s" }}>
-                          {selected ? <CheckCircle size={11} color="white" /> : <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)" }}>{opt.optionLabel}</span>}                          </div>
+                          {selected ? <Check size={11} color="white" /> : <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)" }}>{opt.optionLabel}</span>}                          </div>
                           {opt.optionText}
                         </button>
                       );
