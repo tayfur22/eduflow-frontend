@@ -6,7 +6,7 @@ import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import {
   Clock, CheckCircle, XCircle, AlertCircle,
-  ArrowRight, ArrowLeft, Check, Trophy, RotateCcw
+  ArrowRight, ArrowLeft, Check , Trophy, RotateCcw
 } from "lucide-react";
 
 export default function QuizPage() {
@@ -261,7 +261,7 @@ export default function QuizPage() {
                           flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
                           transition: "all 0.15s ease",
                         }}>
-                          {selected && <Check size={11} color="white" />}
+                         {selected && <CheckCircle size={11} color="white" />}
                         </div>
                         {opt.optionText}
                       </button>
