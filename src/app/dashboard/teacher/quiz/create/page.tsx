@@ -1,18 +1,19 @@
 "use client";
 
+import { Suspense } from "react";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import {
   ClipboardList, Plus, X, Check, Loader2, ArrowLeft,
-  Trash2, ChevronDown, ChevronUp, Timer, Award
+  Trash2, ChevronDown, ChevronUp
 } from "lucide-react";
 
 interface Option { text: string; correct: boolean; }
 interface Question { questionText: string; points: number; options: Option[]; }
 
-export default function CreateQuizPage() {
+function CreateQuizContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
@@ -84,7 +85,6 @@ export default function CreateQuizPage() {
 
     setSaving(true);
     try {
-      // Quiz yarat
       const quizRes = await api.post(`/api/courses/${form.courseId}/quizzes`, {
         title: form.title,
         timeLimit: form.timeLimit ? Number(form.timeLimit) : null,
@@ -93,7 +93,6 @@ export default function CreateQuizPage() {
       });
       const quizId = quizRes.data.id;
 
-      // Sualları əlavə et
       for (const q of questions) {
         await api.post(`/api/quizzes/${quizId}/questions`, {
           questionText: q.questionText,
@@ -139,7 +138,6 @@ export default function CreateQuizPage() {
 
       <div className="section">
         <div className="container" style={{ maxWidth: 760 }}>
-          {/* Quiz settings */}
           <div className="card animate-fade-up" style={{ padding: 28, marginBottom: 24 }}>
             <h3 style={{ fontSize: 16, marginBottom: 20 }}>Quiz parametrləri</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -190,7 +188,6 @@ export default function CreateQuizPage() {
             </div>
           </div>
 
-          {/* Questions */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <h3 style={{ fontSize: 18 }}>Suallar</h3>
             <button onClick={addQuestion} className="btn btn-secondary" style={{ fontSize: 13 }}>
@@ -201,7 +198,6 @@ export default function CreateQuizPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {questions.map((q, qi) => (
               <div key={qi} className="card animate-fade-up" style={{ overflow: "hidden", animationDelay: `${qi * 0.04}s`, opacity: 0 }}>
-                {/* Question header */}
                 <div style={{ display: "flex", alignItems: "center", padding: "16px 20px", gap: 12, cursor: "pointer" }}
                   onClick={() => setOpenQ(prev => prev.includes(qi) ? prev.filter(i => i !== qi) : [...prev, qi])}>
                   <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--accent-soft)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "var(--accent)", flexShrink: 0 }}>
@@ -222,7 +218,6 @@ export default function CreateQuizPage() {
 
                 {openQ.includes(qi) && (
                   <div style={{ borderTop: "1px solid var(--border)", padding: "20px" }}>
-                    {/* Question text */}
                     <div style={{ marginBottom: 16 }}>
                       <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 7 }}>
                         Sual mətni *
@@ -233,7 +228,6 @@ export default function CreateQuizPage() {
                         style={{ resize: "vertical" }} />
                     </div>
 
-                    {/* Points */}
                     <div style={{ marginBottom: 20, maxWidth: 160 }}>
                       <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 7 }}>
                         Bal
@@ -243,7 +237,6 @@ export default function CreateQuizPage() {
                         onChange={e => updateQuestion(qi, "points", Number(e.target.value))} />
                     </div>
 
-                    {/* Options */}
                     <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 10 }}>
                       Variantlar <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(düzgünü seçin)</span>
                     </label>
@@ -272,7 +265,6 @@ export default function CreateQuizPage() {
             ))}
           </div>
 
-          {/* Bottom save */}
           <div className="card" style={{ padding: "20px 24px", marginTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontSize: 14, color: "var(--text-secondary)" }}>
               <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{questions.length}</span> sual ·{" "}
@@ -287,5 +279,19 @@ export default function CreateQuizPage() {
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
+  );
+}
+
+export default function CreateQuizPage() {
+  return (
+    <Suspense fallback={
+      <div className="page" style={{ paddingTop: 80 }}>
+        <div className="container section">
+          {[1, 2, 3].map(i => <div key={i} className="card skeleton" style={{ height: 120, marginBottom: 14 }} />)}
+        </div>
+      </div>
+    }>
+      <CreateQuizContent />
+    </Suspense>
   );
 }

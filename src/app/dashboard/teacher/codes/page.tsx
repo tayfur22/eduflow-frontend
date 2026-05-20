@@ -1,15 +1,16 @@
 "use client";
 
+import { Suspense } from "react";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import {
   Key, Plus, X, Copy, Check, Power, ArrowLeft,
-  Loader2, Calendar, Users, AlertCircle
+  Loader2, Calendar, Users
 } from "lucide-react";
 
-export default function AccessCodesPage() {
+function AccessCodesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
@@ -96,7 +97,6 @@ export default function AccessCodesPage() {
 
   return (
     <div className="page" style={{ paddingTop: 80 }}>
-      {/* Header */}
       <div style={{ background: "var(--bg-secondary)", borderBottom: "1px solid var(--border)", padding: "40px 0" }}>
         <div className="container">
           <button onClick={() => router.back()} className="btn btn-ghost"
@@ -201,7 +201,6 @@ export default function AccessCodesPage() {
         </div>
       </div>
 
-      {/* Create Modal */}
       {showModal && (
         <div style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
@@ -217,7 +216,6 @@ export default function AccessCodesPage() {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Course */}
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 7 }}>
                   Kurs *
@@ -229,7 +227,6 @@ export default function AccessCodesPage() {
                 </select>
               </div>
 
-              {/* Code */}
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 7 }}>
                   Kod *
@@ -245,7 +242,6 @@ export default function AccessCodesPage() {
                 </div>
               </div>
 
-              {/* Max usages */}
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 7 }}>
                   Maksimum istifadə sayı <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(boş = limitsiz)</span>
@@ -255,7 +251,6 @@ export default function AccessCodesPage() {
                   onChange={e => setForm({ ...form, maxUsages: e.target.value })} min="1" />
               </div>
 
-              {/* Expires at */}
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 7 }}>
                   Bitmə tarixi <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(boş = limitsiz)</span>
@@ -278,5 +273,19 @@ export default function AccessCodesPage() {
       )}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
+  );
+}
+
+export default function AccessCodesPage() {
+  return (
+    <Suspense fallback={
+      <div className="page" style={{ paddingTop: 80 }}>
+        <div className="container section">
+          {[1, 2, 3].map(i => <div key={i} className="card skeleton" style={{ height: 80, marginBottom: 12 }} />)}
+        </div>
+      </div>
+    }>
+      <AccessCodesContent />
+    </Suspense>
   );
 }
