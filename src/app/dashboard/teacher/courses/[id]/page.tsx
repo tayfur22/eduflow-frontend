@@ -12,7 +12,7 @@ import {
   Link2, Film, FileImage, AlertCircle, CheckCircle
 } from "lucide-react";
 
-type LessonType = "VIDEO" | "PDF" | "TEXT" | "FILE";
+type LessonType = "VIDEO" | "PDF" | "TEXT" | "QUIZ" | "FILE";
 
 export default function TeacherCourseManagePage() {
   const { id } = useParams();
@@ -31,8 +31,8 @@ export default function TeacherCourseManagePage() {
   const [activeSectionId, setActiveSectionId] = useState<number | null>(null);
   const [lessonForm, setLessonForm] = useState({
     title: "",
-    description: "",
-     contentUrl: "",
+    textContent: "",
+    contentUrl: "",
     lessonType: "VIDEO" as LessonType,
     orderIndex: 0,
   });
@@ -78,7 +78,7 @@ export default function TeacherCourseManagePage() {
     setActiveSectionId(sectionId);
     const section = course.sections?.find((s: any) => s.id === sectionId);
     setLessonForm({
-      title: "", description: "",  contentUrl: "",
+      title: "", textContent: "",  contentUrl: "",
       lessonType: "VIDEO",
       orderIndex: section?.lessons?.length || 0,
     });
@@ -258,8 +258,8 @@ export default function TeacherCourseManagePage() {
                             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                               {lessonTypeIcon(lesson.lessonType)}
                               <span style={{ fontSize: 14, color: "var(--text-primary)" }}>{lesson.title}</span>
-                              {lesson.videoUrl && (
-                                <a href={lesson.videoUrl} target="_blank" rel="noreferrer"
+                              {lesson.contentUrl && (
+                                <a href={lesson.contentUrl} target="_blank" rel="noreferrer"
                                   style={{ fontSize: 11, color: "var(--accent)", textDecoration: "none" }}>
                                   ↗ Link
                                 </a>
@@ -411,7 +411,7 @@ export default function TeacherCourseManagePage() {
                   )}
 
                   {/* File Upload */}
-                  {(lessonForm.lessonType !== "VIDEO" || uploadMode === "file") && lessonForm.lessonType !== "TEXT" && (
+                  {(lessonForm.lessonType === "FILE" || lessonForm.lessonType === "PDF" || (lessonForm.lessonType === "VIDEO" && uploadMode === "file")) && (
                     <div>
                       <input
                         ref={fileInputRef}
@@ -475,7 +475,7 @@ export default function TeacherCourseManagePage() {
                                 setUploadedUrl("");
                                 setUploadProgress(0);
                                 setUploadError("");
-                                setLessonForm(prev => ({ ...prev, videoUrl: "" }));
+                                setLessonForm(prev => ({ ...prev, contentUrl: "" }));
                                 if (fileInputRef.current) fileInputRef.current.value = "";
                               }} className="btn btn-ghost" style={{ padding: 6, flexShrink: 0 }}>
                                 <X size={15} />
@@ -534,8 +534,8 @@ export default function TeacherCourseManagePage() {
                     ? "Dərs məzmununu buraya yazın — izah, kod nümunəsi, qeydlər..."
                     : "Dərs haqqında qısa məlumat..."}
                   rows={lessonForm.lessonType === "TEXT" ? 8 : 3}
-                  value={lessonForm.description}
-                  onChange={e => setLessonForm({ ...lessonForm, description: e.target.value })}
+                  value={lessonForm.textContent}
+                  onChange={e => setLessonForm({ ...lessonForm, textContent: e.target.value })}
                   style={{ resize: "vertical", lineHeight: 1.6 }} />
               </div>
             </div>
