@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import api from "@/lib/api";
+import { uploadToCloudinary, formatBytes, getFileIcon, ACCEPTED_FILE_TYPES } from "@/lib/cloudinary";
 import {
   ArrowLeft, Plus, BookOpen, Play, Trash2, ChevronDown,
   ChevronRight, Edit, Video, FileText, ClipboardList,
-  Eye, EyeOff, Loader2, X, Check, GripVertical
+  Eye, EyeOff, Loader2, X, Check, Upload,
+  Link2, Film, FileImage, AlertCircle, CheckCircle
 } from "lucide-react";
+
+type LessonType = "VIDEO" | "PDF" | "TEXT" | "FILE";
 
 export default function TeacherCourseManagePage() {
   const { id } = useParams();
@@ -26,13 +30,24 @@ export default function TeacherCourseManagePage() {
   const [showLessonModal, setShowLessonModal] = useState(false);
   const [activeSectionId, setActiveSectionId] = useState<number | null>(null);
   const [lessonForm, setLessonForm] = useState({
-    title: "", description: "", videoUrl: "", lessonType: "VIDEO", orderIndex: 0,
+    title: "",
+    description: "",
+    videoUrl: "",
+    lessonType: "VIDEO" as LessonType,
+    orderIndex: 0,
   });
   const [lessonLoading, setLessonLoading] = useState(false);
 
-  useEffect(() => {
-    loadCourse();
-  }, [id]);
+  // Upload state
+  const [uploadMode, setUploadMode] = useState<"url" | "file">("url");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedUrl, setUploadedUrl] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { loadCourse(); }, [id]);
 
   const loadCourse = () => {
     api.get(`/api/courses/public/${id}`)
@@ -67,14 +82,45 @@ export default function TeacherCourseManagePage() {
       lessonType: "VIDEO",
       orderIndex: section?.lessons?.length || 0,
     });
+    setUploadMode("url");
+    setUploadFile(null);
+    setUploadProgress(0);
+    setUploadedUrl("");
+    setUploadError("");
     setShowLessonModal(true);
+  };
+
+  // Fayl seçildikdə avtomatik upload et
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadFile(file);
+    setUploadError("");
+    setUploadProgress(0);
+    setUploadedUrl("");
+    setUploading(true);
+
+    try {
+      const result = await uploadToCloudinary(file, (pct) => setUploadProgress(pct));
+      setUploadedUrl(result.url);
+      setLessonForm(prev => ({ ...prev, videoUrl: result.url }));
+    } catch (err: any) {
+      setUploadError(err.message || "Upload xətası");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const addLesson = async () => {
     if (!lessonForm.title.trim()) return;
     setLessonLoading(true);
     try {
-      await api.post(`/api/sections/${activeSectionId}/lessons`, lessonForm);
+      const payload = {
+        ...lessonForm,
+        videoUrl: uploadedUrl || lessonForm.videoUrl,
+      };
+      await api.post(`/api/sections/${activeSectionId}/lessons`, payload);
       setShowLessonModal(false);
       loadCourse();
     } catch (e: any) {
@@ -94,9 +140,17 @@ export default function TeacherCourseManagePage() {
     setOpenSections(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]);
 
   const lessonTypeIcon = (type: string) => {
-    if (type === "VIDEO") return <Video size={13} color="var(--accent)" />;
+    if (type === "VIDEO") return <Film size={13} color="var(--accent)" />;
     if (type === "PDF") return <FileText size={13} color="#7c3aed" />;
+    if (type === "FILE") return <FileImage size={13} color="#059669" />;
     return <FileText size={13} color="var(--text-muted)" />;
+  };
+
+  // Fayl növünə görə accept attribute
+  const getAccept = (type: LessonType) => {
+    if (type === "VIDEO") return ACCEPTED_FILE_TYPES.VIDEO;
+    if (type === "PDF") return ACCEPTED_FILE_TYPES.PDF;
+    return ACCEPTED_FILE_TYPES.ALL;
   };
 
   if (loading) return (
@@ -127,7 +181,7 @@ export default function TeacherCourseManagePage() {
                 {course.sections?.reduce((a: number, s: any) => a + (s.lessons?.length || 0), 0)} dərs
               </p>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <Link href={`/dashboard/teacher/codes?courseId=${id}`} className="btn btn-secondary" style={{ fontSize: 13 }}>
                 🔑 Kodlar
               </Link>
@@ -144,7 +198,6 @@ export default function TeacherCourseManagePage() {
 
       <div className="section">
         <div className="container" style={{ maxWidth: 800 }}>
-          {/* Sections */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <h2 style={{ fontSize: 20 }}>Bölmələr və dərslər</h2>
             <button onClick={() => setShowSectionModal(true)} className="btn btn-primary" style={{ fontSize: 13 }}>
@@ -164,15 +217,13 @@ export default function TeacherCourseManagePage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {course.sections?.map((section: any, i: number) => (
                 <div key={section.id} className="card animate-fade-up" style={{ overflow: "hidden", animationDelay: `${i * 0.05}s`, opacity: 0 }}>
-                  {/* Section header */}
                   <div style={{ display: "flex", alignItems: "center", padding: "16px 20px", gap: 12 }}>
                     <button onClick={() => toggleSection(i)} style={{
                       flex: 1, display: "flex", alignItems: "center", gap: 12,
                       background: "none", border: "none", cursor: "pointer", textAlign: "left",
                     }}>
                       <div style={{
-                        width: 32, height: 32, borderRadius: 8,
-                        background: "var(--accent-soft)",
+                        width: 32, height: 32, borderRadius: 8, background: "var(--accent-soft)",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: 13, fontWeight: 700, color: "var(--accent)",
                       }}>
@@ -184,15 +235,13 @@ export default function TeacherCourseManagePage() {
                       </div>
                       {openSections.includes(i)
                         ? <ChevronDown size={16} color="var(--text-muted)" />
-                        : <ChevronRight size={16} color="var(--text-muted)" />
-                      }
+                        : <ChevronRight size={16} color="var(--text-muted)" />}
                     </button>
                     <button onClick={() => openAddLesson(section.id)} className="btn btn-secondary" style={{ fontSize: 12, padding: "6px 12px", flexShrink: 0 }}>
                       <Plus size={13} /> Dərs
                     </button>
                   </div>
 
-                  {/* Lessons */}
                   {openSections.includes(i) && (
                     <div style={{ borderTop: "1px solid var(--border)" }}>
                       {section.lessons?.length === 0 ? (
@@ -268,75 +317,256 @@ export default function TeacherCourseManagePage() {
         <div style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          zIndex: 1000, padding: 20,
+          zIndex: 1000, padding: 20, overflowY: "auto",
         }} onClick={e => e.target === e.currentTarget && setShowLessonModal(false)}>
-          <div className="card animate-fade-up" style={{ width: "100%", maxWidth: 560, padding: 32 }}>
+          <div className="card animate-fade-up" style={{ width: "100%", maxWidth: 580, padding: 32, margin: "auto" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-              <h3 style={{ fontSize: 18 }}>Yeni dərs</h3>
+              <h3 style={{ fontSize: 18 }}>Yeni dərs əlavə et</h3>
               <button onClick={() => setShowLessonModal(false)} className="btn btn-ghost" style={{ padding: 6 }}>
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               {/* Title */}
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 7 }}>Dərs adı *</label>
-                <input className="input" placeholder="məs: Java-ya giriş" value={lessonForm.title}
+                <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 7 }}>
+                  Dərs adı *
+                </label>
+                <input className="input" placeholder="məs: Java-ya giriş"
+                  value={lessonForm.title}
                   onChange={e => setLessonForm({ ...lessonForm, title: e.target.value })} autoFocus />
               </div>
 
-              {/* Type */}
+              {/* Lesson Type */}
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 7 }}>Dərs növü</label>
-                <div style={{ display: "flex", gap: 8 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 7 }}>
+                  Dərs növü
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
                   {[
-                    { value: "VIDEO", label: "Video", icon: Video },
+                    { value: "VIDEO", label: "Video", icon: Film },
                     { value: "PDF", label: "PDF", icon: FileText },
                     { value: "TEXT", label: "Mətn", icon: Edit },
+                    { value: "FILE", label: "Fayl", icon: Upload },
                   ].map(({ value, label, icon: Icon }) => (
-                    <button key={value} onClick={() => setLessonForm({ ...lessonForm, lessonType: value })}
+                    <button key={value}
+                      onClick={() => {
+                        setLessonForm({ ...lessonForm, lessonType: value as LessonType });
+                        setUploadFile(null);
+                        setUploadedUrl("");
+                        setUploadProgress(0);
+                        setUploadError("");
+                        setUploadMode("url");
+                      }}
                       style={{
-                        flex: 1, padding: "10px 8px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                        padding: "10px 6px", borderRadius: 8, fontSize: 12, fontWeight: 600,
                         border: `2px solid ${lessonForm.lessonType === value ? "var(--accent)" : "var(--border)"}`,
                         background: lessonForm.lessonType === value ? "var(--accent-soft)" : "transparent",
                         color: lessonForm.lessonType === value ? "var(--accent)" : "var(--text-secondary)",
-                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        cursor: "pointer", display: "flex", alignItems: "center",
+                        justifyContent: "center", gap: 5, transition: "all 0.18s",
                       }}>
-                      <Icon size={14} /> {label}
+                      <Icon size={13} /> {label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Video URL */}
-              {lessonForm.lessonType === "VIDEO" && (
+              {/* Video/PDF/File - URL ya da Upload */}
+              {lessonForm.lessonType !== "TEXT" && (
                 <div>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 7 }}>
-                    YouTube / Video link
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 10 }}>
+                    {lessonForm.lessonType === "VIDEO" ? "Video mənbəyi" : "Fayl mənbəyi"}
                   </label>
-                  <input className="input" placeholder="https://youtube.com/watch?v=..."
-                    value={lessonForm.videoUrl}
-                    onChange={e => setLessonForm({ ...lessonForm, videoUrl: e.target.value })} />
+
+                  {/* Toggle: URL vs Upload */}
+                  {lessonForm.lessonType === "VIDEO" && (
+                    <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                      {[
+                        { value: "url", label: "YouTube / Link", icon: Link2 },
+                        { value: "file", label: "Fayl yüklə", icon: Upload },
+                      ].map(({ value, label, icon: Icon }) => (
+                        <button key={value}
+                          onClick={() => { setUploadMode(value as "url" | "file"); setUploadFile(null); setUploadedUrl(""); setUploadProgress(0); }}
+                          style={{
+                            flex: 1, padding: "8px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                            border: `1px solid ${uploadMode === value ? "var(--accent)" : "var(--border)"}`,
+                            background: uploadMode === value ? "var(--accent-soft)" : "transparent",
+                            color: uploadMode === value ? "var(--accent)" : "var(--text-secondary)",
+                            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                          }}>
+                          <Icon size={13} /> {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* YouTube URL input */}
+                  {lessonForm.lessonType === "VIDEO" && uploadMode === "url" && (
+                    <input className="input"
+                      placeholder="https://youtube.com/watch?v=... və ya https://vimeo.com/..."
+                      value={lessonForm.videoUrl}
+                      onChange={e => setLessonForm({ ...lessonForm, videoUrl: e.target.value })} />
+                  )}
+
+                  {/* File Upload */}
+                  {(lessonForm.lessonType !== "VIDEO" || uploadMode === "file") && lessonForm.lessonType !== "TEXT" && (
+                    <div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept={getAccept(lessonForm.lessonType)}
+                        onChange={handleFileSelect}
+                        style={{ display: "none" }}
+                      />
+
+                      {!uploadFile ? (
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{
+                            width: "100%", padding: "32px 20px", borderRadius: 10,
+                            border: "2px dashed var(--border)",
+                            background: "var(--bg-secondary)",
+                            cursor: "pointer", textAlign: "center", color: "var(--text-muted)",
+                            transition: "all 0.18s",
+                          }}
+                          onMouseEnter={e => {
+                            (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)";
+                            (e.currentTarget as HTMLElement).style.color = "var(--accent)";
+                          }}
+                          onMouseLeave={e => {
+                            (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+                            (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+                          }}
+                        >
+                          <Upload size={28} style={{ margin: "0 auto 10px" }} />
+                          <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                            {lessonForm.lessonType === "VIDEO" ? "Video fayl seçin" :
+                              lessonForm.lessonType === "PDF" ? "PDF fayl seçin" :
+                                "Fayl seçin"}
+                          </p>
+                          <p style={{ fontSize: 12 }}>
+                            {lessonForm.lessonType === "VIDEO" ? "MP4, WebM, MOV" :
+                              lessonForm.lessonType === "PDF" ? "PDF" :
+                                "PDF, Word, şəkil, video, və s."}
+                            {" · "}Cloudinary-ə yüklənəcək
+                          </p>
+                        </button>
+                      ) : (
+                        <div style={{
+                          padding: "16px", borderRadius: 10,
+                          border: `1px solid ${uploadError ? "#fca5a5" : uploadedUrl ? "#86efac" : "var(--border)"}`,
+                          background: uploadError ? "#fef2f2" : uploadedUrl ? "#f0fdf4" : "var(--bg-secondary)",
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{ fontSize: 24 }}>{getFileIcon(uploadFile)}</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {uploadFile.name}
+                              </p>
+                              <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                                {formatBytes(uploadFile.size)}
+                              </p>
+                            </div>
+                            {!uploading && (
+                              <button onClick={() => {
+                                setUploadFile(null);
+                                setUploadedUrl("");
+                                setUploadProgress(0);
+                                setUploadError("");
+                                setLessonForm(prev => ({ ...prev, videoUrl: "" }));
+                                if (fileInputRef.current) fileInputRef.current.value = "";
+                              }} className="btn btn-ghost" style={{ padding: 6, flexShrink: 0 }}>
+                                <X size={15} />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Progress bar */}
+                          {uploading && (
+                            <div style={{ marginTop: 12 }}>
+                              <div style={{ height: 6, background: "var(--border)", borderRadius: 3, overflow: "hidden" }}>
+                                <div style={{
+                                  height: "100%", width: `${uploadProgress}%`,
+                                  background: "var(--accent)", borderRadius: 3,
+                                  transition: "width 0.3s ease",
+                                }} />
+                              </div>
+                              <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                                <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+                                Yüklənir... {uploadProgress}%
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Success */}
+                          {uploadedUrl && !uploading && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 13, color: "#15803d" }}>
+                              <CheckCircle size={14} /> Uğurla yükləndi
+                            </div>
+                          )}
+
+                          {/* Error */}
+                          {uploadError && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 12, color: "#dc2626" }}>
+                              <AlertCircle size={13} /> {uploadError}
+                              <button onClick={() => fileInputRef.current?.click()}
+                                style={{ marginLeft: "auto", fontSize: 12, color: "var(--accent)", background: "none", border: "none", cursor: "pointer" }}>
+                                Yenidən cəhd et
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Description */}
+              {/* Description / Text content */}
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 7 }}>
-                  Açıqlama / Mətn
+                  {lessonForm.lessonType === "TEXT" ? "Dərs mətni" : "Açıqlama"}
                 </label>
-                <textarea className="input" placeholder="Dərs haqqında qısa məlumat..."
-                  rows={3} value={lessonForm.description}
+                <textarea className="input"
+                  placeholder={lessonForm.lessonType === "TEXT"
+                    ? "Dərs məzmununu buraya yazın — izah, kod nümunəsi, qeydlər..."
+                    : "Dərs haqqında qısa məlumat..."}
+                  rows={lessonForm.lessonType === "TEXT" ? 8 : 3}
+                  value={lessonForm.description}
                   onChange={e => setLessonForm({ ...lessonForm, description: e.target.value })}
-                  style={{ resize: "vertical" }} />
+                  style={{ resize: "vertical", lineHeight: 1.6 }} />
               </div>
             </div>
 
+            {/* Cloudinary info note */}
+            {!process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME && (
+              <div style={{
+                marginTop: 16, padding: "10px 14px", background: "#fef3c7",
+                border: "1px solid #fcd34d", borderRadius: 8, fontSize: 12, color: "#92400e",
+                display: "flex", alignItems: "flex-start", gap: 8,
+              }}>
+                <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>
+                  Fayl yükləmə üçün <code>.env.local</code>-a Cloudinary məlumatlarını əlavə edin:
+                  <br /><code>NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=...</code>
+                  <br /><code>NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=...</code>
+                </span>
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-              <button onClick={() => setShowLessonModal(false)} className="btn btn-secondary" style={{ flex: 1 }}>Ləğv et</button>
-              <button onClick={addLesson} disabled={lessonLoading} className="btn btn-primary" style={{ flex: 1, justifyContent: "center" }}>
-                {lessonLoading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <><Check size={15} /> Əlavə et</>}
+              <button onClick={() => setShowLessonModal(false)} className="btn btn-secondary" style={{ flex: 1 }}>
+                Ləğv et
+              </button>
+              <button onClick={addLesson}
+                disabled={lessonLoading || uploading}
+                className="btn btn-primary"
+                style={{ flex: 1, justifyContent: "center" }}>
+                {lessonLoading
+                  ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                  : <><Check size={15} /> Dərsi əlavə et</>}
               </button>
             </div>
           </div>
