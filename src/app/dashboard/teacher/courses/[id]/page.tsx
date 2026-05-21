@@ -32,7 +32,7 @@ export default function TeacherCourseManagePage() {
   const [lessonForm, setLessonForm] = useState({
     title: "",
     description: "",
-    videoUrl: "",
+     contentUrl: "",
     lessonType: "VIDEO" as LessonType,
     orderIndex: 0,
   });
@@ -78,7 +78,7 @@ export default function TeacherCourseManagePage() {
     setActiveSectionId(sectionId);
     const section = course.sections?.find((s: any) => s.id === sectionId);
     setLessonForm({
-      title: "", description: "", videoUrl: "",
+      title: "", description: "",  contentUrl: "",
       lessonType: "VIDEO",
       orderIndex: section?.lessons?.length || 0,
     });
@@ -104,7 +104,7 @@ export default function TeacherCourseManagePage() {
     try {
       const result = await uploadToCloudinary(file, (pct) => setUploadProgress(pct));
       setUploadedUrl(result.url);
-      setLessonForm(prev => ({ ...prev, videoUrl: result.url }));
+      setLessonForm(prev => ({ ...prev, contentUrl: result.url }));
     } catch (err: any) {
       setUploadError(err.message || "Upload xətası");
     } finally {
@@ -118,7 +118,7 @@ export default function TeacherCourseManagePage() {
     try {
       const payload = {
         ...lessonForm,
-        videoUrl: uploadedUrl || lessonForm.videoUrl,
+        contentUrl: uploadedUrl || lessonForm.contentUrl,
       };
       await api.post(`/api/sections/${activeSectionId}/lessons`, payload);
       setShowLessonModal(false);
@@ -406,8 +406,8 @@ export default function TeacherCourseManagePage() {
                   {lessonForm.lessonType === "VIDEO" && uploadMode === "url" && (
                     <input className="input"
                       placeholder="https://youtube.com/watch?v=... və ya https://vimeo.com/..."
-                      value={lessonForm.videoUrl}
-                      onChange={e => setLessonForm({ ...lessonForm, videoUrl: e.target.value })} />
+                      value={lessonForm.contentUrl}
+                      onChange={e => setLessonForm({ ...lessonForm, contentUrl: e.target.value })} />
                   )}
 
                   {/* File Upload */}
