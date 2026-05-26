@@ -66,6 +66,12 @@ export default function QuizPage() {
       });
       const payload = { answers: answersMap };
       const r = await api.post(`/api/quizzes/${quizId}/submit`, payload);
+      // Cache result with answers so student dashboard can show wrong answers
+      try {
+        const cached = JSON.parse(sessionStorage.getItem("quizResults") || "{}");
+        cached[r.data.id || r.data.submissionId || quizId] = r.data;
+        sessionStorage.setItem("quizResults", JSON.stringify(cached));
+      } catch {}
       setResult(r.data);
     } catch (e: any) {
       alert(e.response?.data?.error || "Xəta baş verdi");
