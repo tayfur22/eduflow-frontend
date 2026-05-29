@@ -11,6 +11,10 @@ import {
   LayoutDashboard, GraduationCap, CreditCard, User,
   XCircle, AlertCircle, X, ChevronDown, ChevronUp
 } from "lucide-react";
+import { CircularProgress, Confetti } from "@/components/ui/Progress";
+import OnboardingModal from "@/components/onboarding/OnboardingModal";
+import { StatCardSkeleton } from "@/components/ui/Skeletons";
+import BottomTabNav from "@/components/ui/BottomTabNav";;
 
 type NavSection = "overview" | "courses" | "quizzes" | "certificates" | "progress";
 
@@ -23,6 +27,7 @@ export default function StudentDashboard() {
   const [progress, setProgress] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<NavSection>("overview");
+  const [confetti, setConfetti] = useState(false);
 
   // Wrong answers modal
   const [wrongModal, setWrongModal] = useState<any | null>(null);
@@ -120,6 +125,8 @@ export default function StudentDashboard() {
 
   return (
     <div className="page" style={{ paddingTop: 64, minHeight: "100vh", background: "var(--bg-secondary)" }}>
+      <OnboardingModal />
+      <Confetti trigger={confetti} onDone={() => setConfetti(false)} />
       <div style={{ display: "flex", minHeight: "calc(100vh - 64px)" }}>
 
         {/* ── SIDEBAR ── */}
@@ -229,12 +236,14 @@ export default function StudentDashboard() {
 
               {/* Stats grid */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 28 }}>
-                {stats.map(({ icon: Icon, value, label, color }) => (
+                {loading ? (
+                  [1,2,3,4,5].map(i => <StatCardSkeleton key={i} />)
+                ) : stats.map(({ icon: Icon, value, label, color }) => (
                   <div key={label} className="card" style={{ padding: "16px 18px" }}>
                     <div style={{ width: 34, height: 34, borderRadius: 9, background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
                       <Icon size={16} color={color} />
                     </div>
-                    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "Syne, sans-serif", color: "var(--text-primary)" }}>{loading ? "—" : value}</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "Syne, sans-serif", color: "var(--text-primary)" }}>{value}</div>
                     <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{label}</div>
                   </div>
                 ))}
@@ -484,24 +493,47 @@ export default function StudentDashboard() {
                 <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>Öyrənmə fəaliyyətinizin icmalı</p>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16, marginBottom: 28 }}>
                 {[
-                  { label: "Tamamlanan dərslər", value: completedLessons, total: progress.length, color: "#16a34a" },
-                  { label: "Keçilən quizlər", value: passedQuizzes, total: submissions.length, color: "#7c3aed" },
-                  { label: "Ortalama quiz balı", value: avgScore, total: 100, color: "#0ea5e9", suffix: "%" },
-                ].map(({ label, value, total, color, suffix }) => {
-                  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                  { label: "Tamamlanan dərslər", value: progress.length > 0 ? Math.round((completedLessons / progress.length) * 100) : 0, color: "#16a34a", sub: `${completedLessons}/${progress.length}` },
+                  { label: "Keçilən quizlər", value: submissions.length > 0 ? Math.round((passedQuizzes / submissions.length) * 100) : 0, color: "#7c3aed", sub: `${passedQuizzes}/${submissions.length}` },
+                  { label: "Ortalama quiz balı", value: avgScore, color: "#0ea5e9", sub: `${avgScore}%` },
+                ].map(({ label, value, color, sub }) => (
+                  <div key={label} className="card" style={{ padding: 24, display: "flex", alignItems: "center", gap: 20 }}>
+                    <CircularProgress value={value} size={90} strokeWidth={8} color={color} />
+                    <div>
+                      <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 4, lineHeight: 1.4 }}>{label}</p>
+                      <p style={{ fontSize: 20, fontWeight: 800, fontFamily: "Syne, sans-serif", color }}>{sub}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Enrollment progress */}
+              <h3 style={{ fontSize: 16, marginBottom: 14 }}>Kurs tərəqqisi</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {enrollments.length === 0 ? (
+                  <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Heç bir kursa qeydiyyat yoxdur</p>
+                ) : enrollments.map((enr: any) => {
+                  const courseLessons = progress.filter((p: any) => p.courseId === enr.courseId || p.course?.id === enr.courseId);
+                  const done = courseLessons.filter((p: any) => p.completed).length;
+                  const total = courseLessons.length;
+                  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
                   return (
-                    <div key={label} className="card" style={{ padding: 22 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 12 }}>
-                        <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>{label}</p>
-                        <p style={{ fontSize: 22, fontWeight: 800, fontFamily: "Syne, sans-serif", color }}>
-                          {value}{suffix || ""}
-                          <span style={{ fontSize: 13, fontWeight: 400, color: "var(--text-muted)" }}>/{total}{suffix || ""}</span>
-                        </p>
-                      </div>
-                      <div style={{ height: 8, borderRadius: 99, background: "var(--border)", overflow: "hidden" }}>
-                        <div style={{ height: "100%", borderRadius: 99, background: color, width: `${suffix ? value : pct}%`, transition: "width 0.6s ease" }} />
+                    <div key={enr.id} className="card" style={{ padding: "16px 20px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                        <CircularProgress value={pct} size={56} strokeWidth={5} color="var(--accent)" animate={false} />
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{enr.courseTitle || enr.course?.title || "Kurs"}</p>
+                          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>{done}/{total} dərs tamamlandı</p>
+                        </div>
+                        {pct === 100 && (
+                          <button
+                            onClick={() => setConfetti(true)}
+                            style={{ fontSize: 20, background: "none", border: "none", cursor: "pointer" }}
+                            title="Təbrik et!"
+                          >🎉</button>
+                        )}
                       </div>
                     </div>
                   );
@@ -614,6 +646,13 @@ export default function StudentDashboard() {
           </div>
         </div>
       )}
+
+      {/* Mobile bottom navigation */}
+      <BottomTabNav
+        items={navItems}
+        active={activeSection}
+        onChange={(id) => setActiveSection(id as NavSection)}
+      />
     </div>
   );
 }

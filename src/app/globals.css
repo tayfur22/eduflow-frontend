@@ -551,6 +551,13 @@ h1, h2, h3, h4, h5, h6 {
     min-height: 44px;
     min-width: 44px;
   }
+
+  /* Quiz answer options — daha böyük touch target */
+  .quiz-option {
+    padding: 16px 18px !important;
+    min-height: 56px !important;
+    font-size: 15px !important;
+  }
 }
 
 /* ── Safe area (iPhone notch / Dynamic Island) ── */
@@ -561,5 +568,65 @@ h1, h2, h3, h4, h5, h6 {
   }
   body {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ── Swipeable Carousel ── */
+.swipe-carousel {
+  display: flex;
+  overflow-x: auto;
+  gap: 14px;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding-bottom: 8px;
+}
+.swipe-carousel::-webkit-scrollbar { display: none; }
+.swipe-carousel > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+  width: 280px;
+}
+@media (max-width: 480px) {
+  .swipe-carousel > * { width: 85vw; }
+}
+
+/* ── Bottom Tab Nav (mobile dashboards) ── */
+.bottom-tab-nav {
+  display: none;
+}
+@media (max-width: 768px) {
+  .bottom-tab-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+    z-index: 100;
+    padding: 6px 0 max(8px, env(safe-area-inset-bottom));
+  }
+  .bottom-tab-nav button, .bottom-tab-nav a {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 8px 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .bottom-tab-nav button.active, .bottom-tab-nav a.active {
+    color: var(--accent);
+  }
+  /* Push main content above bottom nav */
+  .dashboard-with-bottom-nav {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
   }
 }

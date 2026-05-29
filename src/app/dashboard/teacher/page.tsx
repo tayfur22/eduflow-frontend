@@ -11,6 +11,8 @@ import {
   Sparkles, ChevronRight, ClipboardCheck, Key, X, GraduationCap,
   Calendar, TrendingUp, LayoutDashboard, Zap, BarChart2,
 } from "lucide-react";
+import { StatCardSkeleton, CourseCardSkeleton } from "@/components/ui/Skeletons";
+import BottomTabNav from "@/components/ui/BottomTabNav";
 
 type NavSection = "overview" | "courses" | "tools";
 
@@ -497,6 +499,13 @@ export default function TeacherDashboard() {
           </div>
         </div>
       )}
+
+      {/* Mobile bottom navigation */}
+      <BottomTabNav
+        items={navItems}
+        active={activeSection}
+        onChange={(id) => setActiveSection(id as NavSection)}
+      />
     </div>
   );
 }
